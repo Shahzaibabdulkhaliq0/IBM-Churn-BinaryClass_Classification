@@ -57,3 +57,9 @@ validate:
     - MonthlyCharges
     - TotalCharges
     - Churn
+
+drift:
+  baseline_path: reports/baseline_stats.json
+  current_path: data/processed/test.csv
+  report_path: reports/drift_report.json
+  threshold: 0.1
