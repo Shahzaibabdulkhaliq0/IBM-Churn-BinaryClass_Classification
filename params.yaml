@@ -1,0 +1,59 @@
+fetch_dataset:
+  hf_repo: scikit-learn/churn-prediction
+  raw_path: data/raw/churn.csv
+
+data:
+  hf_repo: scikit-learn/churn-prediction
+  raw_path: data/raw/churn.csv
+  processed_path: data/processed/churn_clean.csv
+  drop_cols:
+    - customerID
+
+features:
+  target: Churn
+  service_cols:
+    - PhoneService
+    - MultipleLines
+    - InternetService
+    - OnlineSecurity
+    - OnlineBackup
+    - DeviceProtection
+    - TechSupport
+    - StreamingTV
+    - StreamingMovies
+  no_service_values:
+    - "No"
+    - "No internet service"
+    - "No phone service"
+
+split:
+  test_size: 0.2
+  random_state: 42
+
+validate:
+  target: Churn
+  allowed_target_values:
+    - "Yes"
+    - "No"
+  min_rows: 1000
+  expected_columns:
+    - gender
+    - SeniorCitizen
+    - Partner
+    - Dependents
+    - tenure
+    - PhoneService
+    - MultipleLines
+    - InternetService
+    - OnlineSecurity
+    - OnlineBackup
+    - DeviceProtection
+    - TechSupport
+    - StreamingTV
+    - StreamingMovies
+    - Contract
+    - PaperlessBilling
+    - PaymentMethod
+    - MonthlyCharges
+    - TotalCharges
+    - Churn
