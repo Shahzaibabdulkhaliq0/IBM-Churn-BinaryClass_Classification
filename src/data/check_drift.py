@@ -7,34 +7,44 @@ import yaml
 from src.logger.logger import logger
 
 with open("params.yaml") as f:
-    params = yaml.safe_load(f)
+    params = yaml.safe_load(f)["check_drift"]
 
-drift_params = params["drift"]
-
-with open(drift_params["baseline_path"]) as f:
+# Baseline = numbers saved from the training split (build_features.py)
+with open("reports/baseline_stats.json") as f:
     baseline = json.load(f)
 
-current = pd.read_csv(drift_params["current_path"])
+# New data = the cleaned data from make_dataset.py
+df = pd.read_csv("data/interim/cleaned_data.csv", low_memory=False)
 
-columns = [col for col in baseline if col in current.columns]
+# Check 1: change in average monthly charges, as a fraction of the baseline average
+new_charges_mean = float(df["MonthlyCharges"].mean())
+charges_change = abs(new_charges_mean - baseline["monthly_charges_mean"]) / baseline["monthly_charges_mean"]
 
-report = {}
-for col in columns:
-    base_mean = baseline[col]
-    cur_mean = float(current[col].mean())
-    change = abs(cur_mean - base_mean) / (abs(base_mean) + 1e-9)
-    report[col] = {
-        "baseline_mean": base_mean,
-        "current_mean": cur_mean,
-        "relative_change": change,
-        "drifted": bool(change > drift_params["threshold"]),
-    }
+# Check 2: change in the share of churned customers (Yes)
+new_churn_share = float((df["Churn"] == "Yes").mean())
+churn_share_change = abs(new_churn_share - baseline["churn_share"])
 
-drifted_cols = [col for col in report if report[col]["drifted"]]
+# Drift is a WARNING, not an error. The pipeline keeps running so you can read the report first.
+drift_detected = bool(
+    charges_change > params["MAX_MONTHLY_CHARGES_MEAN_CHANGE"]
+    or churn_share_change > params["MAX_CHURN_SHARE_CHANGE"]
+)
 
+report = {
+    "new_monthly_charges_mean": new_charges_mean,
+    "baseline_monthly_charges_mean": baseline["monthly_charges_mean"],
+    "monthly_charges_mean_change": float(charges_change),
+    "new_churn_share": new_churn_share,
+    "baseline_churn_share": baseline["churn_share"],
+    "churn_share_change": float(churn_share_change),
+    "drift_detected": drift_detected,
+}
 os.makedirs("reports", exist_ok=True)
-with open(drift_params["report_path"], "w") as f:
-    json.dump(report, f, indent=2)
+with open("reports/drift_report.json", "w") as f:
+    json.dump(report, f, indent=4)
 
-# Sirf warning hai, pipeline yahan nahi rukta
-logger.warning(f"Drifted columns: {drifted_cols}")
+print(report)
+logger.info(
+    f"Drift check: drift_detected={drift_detected} "
+    f"charges_change={charges_change:.3f} churn_share_change={churn_share_change:.3f}"
+)
