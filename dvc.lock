@@ -1,0 +1,277 @@
+schema: '2.0'
+stages:
+  make_dataset:
+    cmd: python -m src.data.make_dataset
+    deps:
+    - path: src/data/make_dataset.py
+      hash: md5
+      md5: 836d0f1c768c01ce5d1ed6016ffd581d
+      size: 1522
+    params:
+      params.yaml:
+        make_dataset.DROP_COLUMNS:
+        - customerID
+        make_dataset.S3_BUCKET: ibm-churn-project-s3-bucket
+        make_dataset.S3_KEY: Telco-Customer-Churn.csv
+    outs:
+    - path: data/interim/cleaned_data.csv
+      hash: md5
+      md5: b57724aa67a2fb762f64261507095125
+      size: 901471
+    - path: data/raw/Telco-Customer-Churn.csv
+      hash: md5
+      md5: 7f07de26b054de4c36eed95a1277fe21
+      size: 978285
+  validate_data:
+    cmd: python -m src.data.validate_data
+    deps:
+    - path: data/interim/cleaned_data.csv
+      hash: md5
+      md5: b57724aa67a2fb762f64261507095125
+      size: 901471
+    - path: src/data/validate_data.py
+      hash: md5
+      md5: d2e4900650e1f6d6ca14df0f7b79e3c9
+      size: 1478
+    params:
+      params.yaml:
+        validate_data:
+          REQUIRED_COLUMNS:
+          - gender
+          - SeniorCitizen
+          - Partner
+          - Dependents
+          - tenure
+          - PhoneService
+          - MultipleLines
+          - InternetService
+          - OnlineSecurity
+          - OnlineBackup
+          - DeviceProtection
+          - TechSupport
+          - StreamingTV
+          - StreamingMovies
+          - Contract
+          - PaperlessBilling
+          - PaymentMethod
+          - MonthlyCharges
+          - TotalCharges
+          - Churn
+          MIN_ROWS: 1000
+          MIN_TENURE: 0
+          MAX_TENURE: 100
+          MIN_MONTHLY_CHARGES: 0
+          ALLOWED_CHURN_VALUES:
+          - Yes
+          - No
+          MAX_NULL_SHARE: 0.05
+    outs:
+    - path: reports/data_validation.json
+      hash: md5
+      md5: 2649ceb6d07485f7610bdd281049b95d
+      size: 224
+  build_features:
+    cmd: python -m src.features.build_features
+    deps:
+    - path: data/interim/cleaned_data.csv
+      hash: md5
+      md5: b57724aa67a2fb762f64261507095125
+      size: 901471
+    - path: reports/data_validation.json
+      hash: md5
+      md5: 2649ceb6d07485f7610bdd281049b95d
+      size: 224
+    - path: src/features/build_features.py
+      hash: md5
+      md5: e48911cbdf727e4f691d76a25538ad72
+      size: 1806
+    params:
+      params.yaml:
+        build_features:
+          TARGET: Churn
+          TEST_SIZE: 0.2
+          RANDOM_STATE: 42
+          SERVICE_COLUMNS:
+          - PhoneService
+          - MultipleLines
+          - InternetService
+          - OnlineSecurity
+          - OnlineBackup
+          - DeviceProtection
+          - TechSupport
+          - StreamingTV
+          - StreamingMovies
+          NO_SERVICE_VALUES:
+          - No
+          - No internet service
+          - No phone service
+    outs:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 94be87e1ef7bda228f3dcdf10f2acb8f
+      size: 181772
+    - path: data/processed/train.csv
+      hash: md5
+      md5: d15196ed2b46c7c78a7e83f6758e10b0
+      size: 725153
+    - path: models/feature_config.json
+      hash: md5
+      md5: 138674bb70fb8abc590764d2b91e9a3e
+      size: 383
+    - path: reports/baseline_stats.json
+      hash: md5
+      md5: ab7f1c7c60fec14eeef90ddcf56bcda3
+      size: 91
+  train_model:
+    cmd: python -m src.model.train_model
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: d15196ed2b46c7c78a7e83f6758e10b0
+      size: 725153
+    - path: src/model/train_model.py
+      hash: md5
+      md5: c0b7c967f97637dd2300f74cf95f4e20
+      size: 5595
+    params:
+      params.yaml:
+        mlflow.EXPERIMENT_NAME: IBM-Churn-Prediction
+        mlflow.TRACKING_URI: 
+          https://dagshub.com/Shahzaibabdulkhaliq0/IBM-Churn-BinaryClass_Classification.mlflow
+        train_model:
+          TARGET: Churn
+          RANDOM_STATE: 42
+          CV_FOLDS: 5
+    outs:
+    - path: models/best_model_name.txt
+      hash: md5
+      md5: 3261e6107adbefc58955de2aa613847a
+      size: 19
+    - path: models/untrained_pipeline.joblib
+      hash: md5
+      md5: 8460758d6992b8c49345ff595b594569
+      size: 1640
+    - path: reports/model_comparison.csv
+      hash: md5
+      md5: 1244ae2ef9acc4fec81e21d78c778c6b
+      size: 445
+  tune_model:
+    cmd: python -m src.model.tune_model
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: d15196ed2b46c7c78a7e83f6758e10b0
+      size: 725153
+    - path: models/best_model_name.txt
+      hash: md5
+      md5: 3261e6107adbefc58955de2aa613847a
+      size: 19
+    - path: models/untrained_pipeline.joblib
+      hash: md5
+      md5: 8460758d6992b8c49345ff595b594569
+      size: 1640
+    - path: src/model/tune_model.py
+      hash: md5
+      md5: c1a5c1ff96a729ff4a0222bf2bfe1216
+      size: 3586
+    params:
+      params.yaml:
+        mlflow.EXPERIMENT_NAME: IBM-Churn-Prediction
+        mlflow.TRACKING_URI: 
+          https://dagshub.com/Shahzaibabdulkhaliq0/IBM-Churn-BinaryClass_Classification.mlflow
+        tune_model:
+          TARGET: Churn
+          RANDOM_STATE: 42
+          CV_FOLDS: 3
+          SCORING: f1
+          PARAM_GRIDS:
+            Logistic Regression:
+              classifier__C:
+              - 0.01
+              - 0.1
+              - 1
+              - 10
+            Random Forest:
+              classifier__n_estimators:
+              - 100
+              - 200
+              classifier__max_depth:
+              - 8
+              - 12
+              - 
+              classifier__min_samples_leaf:
+              - 1
+              - 3
+    outs:
+    - path: models/best_model.joblib
+      hash: md5
+      md5: 4db7b9afd5cb60a26c9f4d7b9ac4cab4
+      size: 8986
+    - path: reports/best_params.json
+      hash: md5
+      md5: cc06998cd832af0b20e0fbf11f146258
+      size: 137
+    - path: reports/run_info.json
+      hash: md5
+      md5: 6a86d6a506d4e7ed0ef40b3b49e2bab6
+      size: 146
+  evaluate_model:
+    cmd: python -m src.model.evaluate_model
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 94be87e1ef7bda228f3dcdf10f2acb8f
+      size: 181772
+    - path: models/best_model.joblib
+      hash: md5
+      md5: 4db7b9afd5cb60a26c9f4d7b9ac4cab4
+      size: 8986
+    - path: reports/run_info.json
+      hash: md5
+      md5: 6a86d6a506d4e7ed0ef40b3b49e2bab6
+      size: 146
+    - path: src/model/evaluate_model.py
+      hash: md5
+      md5: 4191e85a6e272f411c97193a0a2b508c
+      size: 3625
+    params:
+      params.yaml:
+        evaluate_model.REGISTERED_MODEL_NAME: churn_model
+        evaluate_model.TARGET: Churn
+        mlflow.EXPERIMENT_NAME: IBM-Churn-Prediction
+        mlflow.TRACKING_URI: 
+          https://dagshub.com/Shahzaibabdulkhaliq0/IBM-Churn-BinaryClass_Classification.mlflow
+    outs:
+    - path: reports/figures/confusion_matrix.png
+      hash: md5
+      md5: c2a7998a1ecc07f911a526eae02708c5
+      size: 12092
+    - path: reports/metrics.json
+      hash: md5
+      md5: 29256297d01c188d17cb1684824c3c96
+      size: 205
+  check_drift:
+    cmd: python -m src.data.check_drift
+    deps:
+    - path: data/interim/cleaned_data.csv
+      hash: md5
+      md5: b57724aa67a2fb762f64261507095125
+      size: 901471
+    - path: reports/baseline_stats.json
+      hash: md5
+      md5: ab7f1c7c60fec14eeef90ddcf56bcda3
+      size: 91
+    - path: src/data/check_drift.py
+      hash: md5
+      md5: 3fdc1fe65ef5859a969f5f3c1ecbedb1
+      size: 1835
+    params:
+      params.yaml:
+        check_drift:
+          MAX_MONTHLY_CHARGES_MEAN_CHANGE: 0.2
+          MAX_CHURN_SHARE_CHANGE: 0.1
+    outs:
+    - path: reports/drift_report.json
+      hash: md5
+      md5: 4405a3900f8a9e48638fc0763ca4f82a
+      size: 345
