@@ -1,0 +1,5 @@
+[core]
+    remote = churn
+['remote "churn"']
+    url = s3://ibm-churn-project-s3-bucket
+    region = eu-north-1

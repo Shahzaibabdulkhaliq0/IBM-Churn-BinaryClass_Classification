@@ -1,0 +1,95 @@
+stages:
+  make_dataset:
+    cmd: python -m src.data.make_dataset
+    deps:
+      - src/data/make_dataset.py
+    params:
+      - make_dataset.S3_BUCKET
+      - make_dataset.S3_KEY
+      - make_dataset.DROP_COLUMNS
+    outs:
+      - data/raw/Telco-Customer-Churn.csv
+      - data/interim/cleaned_data.csv
+
+  validate_data:
+    cmd: python -m src.data.validate_data
+    deps:
+      - data/interim/cleaned_data.csv
+      - src/data/validate_data.py
+    params:
+      - validate_data
+    outs:
+      - reports/data_validation.json
+
+  build_features:
+    cmd: python -m src.features.build_features
+    deps:
+      - data/interim/cleaned_data.csv
+      - reports/data_validation.json
+      - src/features/build_features.py
+    params:
+      - build_features
+    outs:
+      - data/processed/train.csv
+      - data/processed/test.csv
+      - models/feature_config.json
+      - reports/baseline_stats.json
+
+  train_model:
+    cmd: python -m src.model.train_model
+    deps:
+      - data/processed/train.csv
+      - src/model/train_model.py
+    params:
+      - train_model
+      - mlflow.TRACKING_URI
+      - mlflow.EXPERIMENT_NAME
+    outs:
+      - models/untrained_pipeline.joblib
+      - models/best_model_name.txt
+      - reports/model_comparison.csv
+
+  tune_model:
+    cmd: python -m src.model.tune_model
+    deps:
+      - data/processed/train.csv
+      - models/untrained_pipeline.joblib
+      - models/best_model_name.txt
+      - src/model/tune_model.py
+    params:
+      - tune_model
+      - mlflow.TRACKING_URI
+      - mlflow.EXPERIMENT_NAME
+    outs:
+      - models/best_model.joblib
+      - reports/best_params.json
+      - reports/run_info.json
+
+  evaluate_model:
+    cmd: python -m src.model.evaluate_model
+    deps:
+      - data/processed/test.csv
+      - models/best_model.joblib
+      - reports/run_info.json
+      - src/model/evaluate_model.py
+    params:
+      - evaluate_model.REGISTERED_MODEL_NAME
+      - evaluate_model.TARGET
+      - mlflow.TRACKING_URI
+      - mlflow.EXPERIMENT_NAME
+    metrics:
+      - reports/metrics.json:
+          cache: false
+    outs:
+      - reports/figures/confusion_matrix.png
+
+  check_drift:
+    cmd: python -m src.data.check_drift
+    deps:
+      - data/interim/cleaned_data.csv
+      - reports/baseline_stats.json
+      - src/data/check_drift.py
+    params:
+      - check_drift
+    outs:
+      - reports/drift_report.json
