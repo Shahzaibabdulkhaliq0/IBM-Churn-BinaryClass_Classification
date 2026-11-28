@@ -5,8 +5,8 @@ stages:
     deps:
     - path: src/data/make_dataset.py
       hash: md5
-      md5: 836d0f1c768c01ce5d1ed6016ffd581d
-      size: 1522
+      md5: ed5b63d4aa0bb638f1f00a2b8b0c1e58
+      size: 1479
     params:
       params.yaml:
         make_dataset.DROP_COLUMNS:
@@ -16,8 +16,8 @@ stages:
     outs:
     - path: data/interim/cleaned_data.csv
       hash: md5
-      md5: b57724aa67a2fb762f64261507095125
-      size: 901471
+      md5: 4cd67b4c78fd671c2889f0edd8aefa2c
+      size: 894427
     - path: data/raw/Telco-Customer-Churn.csv
       hash: md5
       md5: 7f07de26b054de4c36eed95a1277fe21
@@ -27,12 +27,12 @@ stages:
     deps:
     - path: data/interim/cleaned_data.csv
       hash: md5
-      md5: b57724aa67a2fb762f64261507095125
-      size: 901471
+      md5: 4cd67b4c78fd671c2889f0edd8aefa2c
+      size: 894427
     - path: src/data/validate_data.py
       hash: md5
-      md5: d2e4900650e1f6d6ca14df0f7b79e3c9
-      size: 1478
+      md5: c21c9f41e398791539242b98703d2bd3
+      size: 1439
     params:
       params.yaml:
         validate_data:
@@ -68,23 +68,23 @@ stages:
     outs:
     - path: reports/data_validation.json
       hash: md5
-      md5: 2649ceb6d07485f7610bdd281049b95d
-      size: 224
+      md5: f779d9e665d53dea263102e4b23fa428
+      size: 215
   build_features:
     cmd: python -m src.features.build_features
     deps:
     - path: data/interim/cleaned_data.csv
       hash: md5
-      md5: b57724aa67a2fb762f64261507095125
-      size: 901471
+      md5: 4cd67b4c78fd671c2889f0edd8aefa2c
+      size: 894427
     - path: reports/data_validation.json
       hash: md5
-      md5: 2649ceb6d07485f7610bdd281049b95d
-      size: 224
+      md5: f779d9e665d53dea263102e4b23fa428
+      size: 215
     - path: src/features/build_features.py
       hash: md5
-      md5: e48911cbdf727e4f691d76a25538ad72
-      size: 1806
+      md5: 4b1fcdc1e4a070ba59ff6d6c8874656c
+      size: 1755
     params:
       params.yaml:
         build_features:
@@ -108,31 +108,31 @@ stages:
     outs:
     - path: data/processed/test.csv
       hash: md5
-      md5: 94be87e1ef7bda228f3dcdf10f2acb8f
-      size: 181772
+      md5: b345fa9b43f33fd7d1d6cfffa88b5e87
+      size: 180362
     - path: data/processed/train.csv
       hash: md5
-      md5: d15196ed2b46c7c78a7e83f6758e10b0
-      size: 725153
+      md5: c6e84941fc40008d84b479efeb194a20
+      size: 719518
     - path: models/feature_config.json
       hash: md5
-      md5: 138674bb70fb8abc590764d2b91e9a3e
-      size: 383
+      md5: 1a35f25fe652d9ff4ceea0f9e8c3bcec
+      size: 366
     - path: reports/baseline_stats.json
       hash: md5
-      md5: ab7f1c7c60fec14eeef90ddcf56bcda3
-      size: 91
+      md5: c19a460d266b0a1c6a7fc29a6aa83d5b
+      size: 88
   train_model:
     cmd: python -m src.model.train_model
     deps:
     - path: data/processed/train.csv
       hash: md5
-      md5: d15196ed2b46c7c78a7e83f6758e10b0
-      size: 725153
+      md5: c6e84941fc40008d84b479efeb194a20
+      size: 719518
     - path: src/model/train_model.py
       hash: md5
-      md5: c0b7c967f97637dd2300f74cf95f4e20
-      size: 5595
+      md5: c07c7bda83594a5993b0e546866dce53
+      size: 5462
     params:
       params.yaml:
         mlflow.EXPERIMENT_NAME: IBM-Churn-Prediction
@@ -153,15 +153,15 @@ stages:
       size: 1640
     - path: reports/model_comparison.csv
       hash: md5
-      md5: 1244ae2ef9acc4fec81e21d78c778c6b
-      size: 445
+      md5: 5082d2e420fbc45c4e2d495193fbabfe
+      size: 440
   tune_model:
     cmd: python -m src.model.tune_model
     deps:
     - path: data/processed/train.csv
       hash: md5
-      md5: d15196ed2b46c7c78a7e83f6758e10b0
-      size: 725153
+      md5: c6e84941fc40008d84b479efeb194a20
+      size: 719518
     - path: models/best_model_name.txt
       hash: md5
       md5: 3261e6107adbefc58955de2aa613847a
@@ -172,8 +172,8 @@ stages:
       size: 1640
     - path: src/model/tune_model.py
       hash: md5
-      md5: c1a5c1ff96a729ff4a0222bf2bfe1216
-      size: 3586
+      md5: e94a847321e621f6387f4556b0f2765e
+      size: 3489
     params:
       params.yaml:
         mlflow.EXPERIMENT_NAME: IBM-Churn-Prediction
@@ -191,6 +191,16 @@ stages:
               - 0.1
               - 1
               - 10
+            Decision Tree:
+              classifier__max_depth:
+              - 3
+              - 5
+              - 10
+              - 
+              classifier__min_samples_split:
+              - 2
+              - 5
+              - 10
             Random Forest:
               classifier__n_estimators:
               - 100
@@ -202,38 +212,48 @@ stages:
               classifier__min_samples_leaf:
               - 1
               - 3
+            Gradient Boosting:
+              classifier__n_estimators:
+              - 100
+              - 200
+              classifier__max_depth:
+              - 2
+              - 3
+              classifier__learning_rate:
+              - 0.05
+              - 0.1
     outs:
     - path: models/best_model.joblib
       hash: md5
-      md5: 4db7b9afd5cb60a26c9f4d7b9ac4cab4
+      md5: 15ff50dba3bc897201c32becf94faaad
       size: 8986
     - path: reports/best_params.json
       hash: md5
-      md5: cc06998cd832af0b20e0fbf11f146258
-      size: 137
+      md5: 4ed4c1aa37f649a8b0a6a2cb41e1d9b9
+      size: 131
     - path: reports/run_info.json
       hash: md5
-      md5: 6a86d6a506d4e7ed0ef40b3b49e2bab6
-      size: 146
+      md5: bbc6a36b5c60a87eebf08ce2bd5eecf8
+      size: 142
   evaluate_model:
     cmd: python -m src.model.evaluate_model
     deps:
     - path: data/processed/test.csv
       hash: md5
-      md5: 94be87e1ef7bda228f3dcdf10f2acb8f
-      size: 181772
+      md5: b345fa9b43f33fd7d1d6cfffa88b5e87
+      size: 180362
     - path: models/best_model.joblib
       hash: md5
-      md5: 4db7b9afd5cb60a26c9f4d7b9ac4cab4
+      md5: 15ff50dba3bc897201c32becf94faaad
       size: 8986
     - path: reports/run_info.json
       hash: md5
-      md5: 6a86d6a506d4e7ed0ef40b3b49e2bab6
-      size: 146
+      md5: bbc6a36b5c60a87eebf08ce2bd5eecf8
+      size: 142
     - path: src/model/evaluate_model.py
       hash: md5
-      md5: 4191e85a6e272f411c97193a0a2b508c
-      size: 3625
+      md5: 4ef9a541b9632c99cb6be9fe9cf6e0ce
+      size: 3517
     params:
       params.yaml:
         evaluate_model.REGISTERED_MODEL_NAME: churn_model
@@ -244,27 +264,27 @@ stages:
     outs:
     - path: reports/figures/confusion_matrix.png
       hash: md5
-      md5: c2a7998a1ecc07f911a526eae02708c5
-      size: 12092
+      md5: c7be3e51d793572577fe2aaeebd29029
+      size: 12738
     - path: reports/metrics.json
       hash: md5
-      md5: 29256297d01c188d17cb1684824c3c96
-      size: 205
+      md5: cfffc346067499e53ceed72b911885de
+      size: 199
   check_drift:
     cmd: python -m src.data.check_drift
     deps:
     - path: data/interim/cleaned_data.csv
       hash: md5
-      md5: b57724aa67a2fb762f64261507095125
-      size: 901471
+      md5: 4cd67b4c78fd671c2889f0edd8aefa2c
+      size: 894427
     - path: reports/baseline_stats.json
       hash: md5
-      md5: ab7f1c7c60fec14eeef90ddcf56bcda3
-      size: 91
+      md5: c19a460d266b0a1c6a7fc29a6aa83d5b
+      size: 88
     - path: src/data/check_drift.py
       hash: md5
-      md5: 3fdc1fe65ef5859a969f5f3c1ecbedb1
-      size: 1835
+      md5: 291b4b26d78323c2a7cbe8943a33f59f
+      size: 1785
     params:
       params.yaml:
         check_drift:
@@ -273,5 +293,5 @@ stages:
     outs:
     - path: reports/drift_report.json
       hash: md5
-      md5: 4405a3900f8a9e48638fc0763ca4f82a
-      size: 345
+      md5: 91e7e5f7f9f87fb5b1d5e75a14bb00f3
+      size: 337
