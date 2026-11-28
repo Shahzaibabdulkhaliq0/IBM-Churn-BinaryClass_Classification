@@ -1,0 +1,105 @@
+# Manual retraining workflow.
+# Data validation (stops the run on bad data) and drift check (warning only) run inside dvc repro.
+# Start it from GitHub: Actions tab -> "Retrain model" -> "Run workflow".
+# It reruns the whole pipeline on fresh data and promotes the new model only if it passes the gate and beats Production.
+# After a successful retrain it starts ci.yml with deploy=true: the new image is built, pushed to ECR and deployed to EKS.
+
+name: Retrain model
+
+on:
+  # Only a manual start. No automatic schedule, so retraining never runs by accident.
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Rerun every DVC stage (new model even if data did not change)"
+        type: boolean
+        default: false
+
+env:
+  # Must match the DVC remote region (.dvc/config)
+  AWS_REGION: eu-north-1
+
+# Needed so the job can commit the new dvc.lock and reports back to the branch
+permissions:
+  contents: write
+  # Needed so this job can start ci.yml with gh workflow run
+  actions: write
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    # Stop the job if it takes too long (training is the slow part)
+    timeout-minutes: 120
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-api.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Get the raw data and the saved DVC files from S3 before running the pipeline
+      - name: Pull data from S3 (DVC)
+        run: dvc pull
+
+      # Run every stage: clean data, split, train, tune, evaluate and register as Staging
+      - name: Run DVC pipeline
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: dvc repro --force
+
+      # Promote the best Staging model to Production only if it passes the gate and beats the current Production
+      - name: Promote model
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: python scripts/promote_model.py
+
+      # Save the new data, models and reports to S3 so the next run and the next person can use them
+      - name: Push outputs to S3 (DVC)
+        run: dvc push
+
+      # Commit the new dvc.lock and reports so git points to the models that are now in S3.
+      # Without this, CI would pull old files and fail. Skipped if nothing changed.
+      - name: Commit new dvc.lock and reports to git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dvc.lock reports/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Retrain: update dvc.lock and reports"
+            git push origin HEAD:"${GITHUB_REF_NAME}"
+          fi
+
+      # Show the data checks in the log. Drift is a warning, read this before promoting if you want to.
+      - name: Show data checks
+        run: |
+          cat reports/data_validation.json
+          echo
+          cat reports/drift_report.json
+
+      # Start ci.yml on the branch head (this includes the bot commit above).
+      # deploy=true: CI builds the image, pushes it to ECR and deploys it to EKS.
+      - name: Start CI (build, push and deploy to EKS)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run ci.yml --ref "$GITHUB_REF_NAME" -f deploy=true
