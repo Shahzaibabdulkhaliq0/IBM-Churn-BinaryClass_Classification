@@ -1,0 +1,14 @@
+.git
+.dvc
+.env
+.venv/
+venv/
+data/
+notebooks/
+reports/
+mlruns/
+logs/
+tests/
+scripts/
+__pycache__/
+*.pyc
