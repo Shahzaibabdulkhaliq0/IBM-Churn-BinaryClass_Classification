@@ -1,0 +1,71 @@
+# Kubernetes (EKS) deployment for the API.
+# CI replaces IMAGE_PLACEHOLDER with the real ECR image before applying this file.
+
+# Deployment: runs 2 copies (replicas) of the API container
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: churn-api
+  labels:
+    app: churn-api
+spec:
+  replicas: 2
+  # Pods with this label belong to this deployment
+  selector:
+    matchLabels:
+      app: churn-api
+  template:
+    metadata:
+      labels:
+        app: churn-api
+      # Tell Prometheus to scrape /metrics from these pods
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics/"
+    spec:
+      containers:
+      - name: churn-api
+        # CI replaces this with the ECR image that has the commit SHA tag
+        image: IMAGE_PLACEHOLDER
+        ports:
+        - containerPort: 8000
+        # Readiness: the pod gets traffic only after /health answers
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        # Liveness: Kubernetes restarts the pod if /health stops answering
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 20
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            # The model pipeline needs more memory than a small web app
+            memory: "1Gi"
+            cpu: "1"
+---
+# Service: one public address (AWS load balancer) that forwards port 80 to the pods' port 8000
+apiVersion: v1
+kind: Service
+metadata:
+  name: churn-api-service
+  labels:
+    app: churn-api
+spec:
+  type: LoadBalancer
+  selector:
+    app: churn-api
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 8000
