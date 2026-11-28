@@ -7,38 +7,33 @@ import yaml
 from src.logger.logger import logger
 
 with open("params.yaml") as f:
-    params = yaml.safe_load(f)
+    params = yaml.safe_load(f)["validate_data"]
 
-data_params = params["data"]
-validate_params = params["validate"]
+df = pd.read_csv("data/interim/cleaned_data.csv", low_memory=False)
 
-df = pd.read_csv(data_params["processed_path"])
+# Stop early if a required column is missing, the checks below need these columns
+missing = [col for col in params["REQUIRED_COLUMNS"] if col not in df.columns]
+assert not missing, f"Missing columns: {missing}"
 
-missing_columns = [col for col in validate_params["expected_columns"] if col not in df.columns]
-null_count = int(df.isnull().sum().sum())
-row_count = len(df)
-target_values = sorted(df[validate_params["target"]].unique().tolist())
-target_ok = set(target_values) <= set(validate_params["allowed_target_values"])
-
-passed = (
-    len(missing_columns) == 0
-    and null_count == 0
-    and row_count >= validate_params["min_rows"]
-    and target_ok
-)
-
-report = {
-    "passed": bool(passed),
-    "missing_columns": missing_columns,
-    "null_count": null_count,
-    "row_count": row_count,
-    "target_values": target_values,
+# Each check is True (passed) or False (failed)
+checks = {
+    "min_rows": bool(len(df) >= params["MIN_ROWS"]),
+    "tenure_in_range": bool(df["tenure"].between(params["MIN_TENURE"], params["MAX_TENURE"]).all()),
+    "monthly_charges_not_negative": bool(df["MonthlyCharges"].min() >= params["MIN_MONTHLY_CHARGES"]),
+    "churn_allowed": bool(df["Churn"].isin(params["ALLOWED_CHURN_VALUES"]).all()),
+    "null_share_ok": bool(df.isnull().mean().max() <= params["MAX_NULL_SHARE"]),
 }
+all_passed = all(checks.values())
 
+# Save the report first, so you can read it even when a check fails
+report = {"checks": checks, "all_passed": all_passed}
 os.makedirs("reports", exist_ok=True)
 with open("reports/data_validation.json", "w") as f:
-    json.dump(report, f, indent=2)
+    json.dump(report, f, indent=4)
 
-logger.info(f"Data validation report: {report}")
+print(report)
+logger.info(f"Data validation: {report}")
 
-assert passed, f"Data validation failed. See reports/data_validation.json"
+# assert stops the pipeline (dvc repro, retrain.yml) when any check fails
+assert all_passed, f"Data validation FAILED: {checks}"
+print("Data validation passed")
