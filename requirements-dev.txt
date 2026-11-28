@@ -1,0 +1,4 @@
+# Dev and test packages. Includes the API packages (requirements-api.txt).
+-r requirements-api.txt
+pytest
+httpx2

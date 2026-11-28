@@ -1,0 +1,6 @@
+# Only for the one-time src/data/fetch_dataset.py step (HuggingFace -> S3).
+# Kept separate so CI and Docker do not install the heavy "datasets" package.
+datasets
+boto3==1.43.117
+pandas==3.1.1
+PyYAML==6.0.4

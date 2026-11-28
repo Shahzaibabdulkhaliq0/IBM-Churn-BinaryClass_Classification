@@ -1,6 +1,38 @@
-/logs/
-__pycache__
-/data/
-/reports/
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Environments and secrets
 .env
-models/
+.venv/
+venv/
+
+# Logs, test cache, local databases
+/logs/
+*.log
+.pytest_cache
+*.db
+mlruns/
+
+# Data is tracked by DVC (S3), not by git
+/data/
+
+# Files produced by the DVC pipeline (tracked through dvc.lock, stored in S3)
+reports/data_validation.json
+reports/baseline_stats.json
+reports/model_comparison.csv
+reports/best_params.json
+reports/run_info.json
+reports/drift_report.json
+reports/figures/confusion_matrix.png
+models/feature_config.json
+models/untrained_pipeline.joblib
+models/best_model_name.txt
+models/best_model.joblib
+models/production_version.txt
+
+# OS / editor files
+.DS_Store
+.idea
+.vscode/
+.ipynb_checkpoints/
