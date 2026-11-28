@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Telco Customer Churn Predictor</title>
+  <style>
+    :root { --bg:#f5f7fb; --card:#fff; --ink:#1c2333; --muted:#5b6578; --line:#dde2ee; --accent:#2f5bea; --yes:#c0392b; --no:#1e8e5a; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+    main { max-width: 860px; margin: 32px auto; padding: 0 16px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; }
+    p.sub { margin: 0 0 20px; color: var(--muted); }
+    form { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px 18px; }
+    label { display:flex; flex-direction:column; gap:4px; font-size:.85rem; color:var(--muted); }
+    select, input { font: inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px; color:var(--ink); background:#fff; }
+    select:focus, input:focus { outline:2px solid var(--accent); outline-offset:1px; }
+    .actions { grid-column: 1 / -1; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+    button { font: inherit; font-weight:600; background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 22px; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:wait; }
+    #result { font-size:1.05rem; }
+    #result strong.yes { color:var(--yes); }
+    #result strong.no { color:var(--no); }
+    #error { color:var(--yes); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Telco Customer Churn Predictor</h1>
+  <p class="sub">Fill in the customer details and press Predict. The model tells if the customer is likely to leave.</p>
+
+  <form id="form">
+    <label>Gender
+      <select name="gender"><option>Female</option><option>Male</option></select></label>
+    <label>Senior citizen
+      <select name="SeniorCitizen" data-type="int"><option value="0">No</option><option value="1">Yes</option></select></label>
+    <label>Partner
+      <select name="Partner"><option>No</option><option>Yes</option></select></label>
+    <label>Dependents
+      <select name="Dependents"><option>No</option><option>Yes</option></select></label>
+    <label>Tenure (months)
+      <input name="tenure" data-type="int" type="number" min="0" max="100" value="12" required></label>
+    <label>Phone service
+      <select name="PhoneService"><option>Yes</option><option>No</option></select></label>
+    <label>Multiple lines
+      <select name="MultipleLines"><option>No</option><option>Yes</option><option>No phone service</option></select></label>
+    <label>Internet service
+      <select name="InternetService"><option>Fiber optic</option><option>DSL</option><option>No</option></select></label>
+    <label>Online security
+      <select name="OnlineSecurity"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+    <label>Online backup
+      <select name="OnlineBackup"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+    <label>Device protection
+      <select name="DeviceProtection"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+    <label>Tech support
+      <select name="TechSupport"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+    <label>Streaming TV
+      <select name="StreamingTV"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+    <label>Streaming movies
+      <select name="StreamingMovies"><option>No</option><option>Yes</option><option>No internet service</option></select></label>
+    <label>Contract
+      <select name="Contract"><option>Month-to-month</option><option>One year</option><option>Two year</option></select></label>
+    <label>Paperless billing
+      <select name="PaperlessBilling"><option>Yes</option><option>No</option></select></label>
+    <label>Payment method
+      <select name="PaymentMethod"><option>Electronic check</option><option>Mailed check</option><option>Bank transfer (automatic)</option><option>Credit card (automatic)</option></select></label>
+    <label>Monthly charges
+      <input name="MonthlyCharges" data-type="float" type="number" min="0" step="0.01" value="85.50" required></label>
+    <label>Total charges
+      <input name="TotalCharges" data-type="float" type="number" min="0" step="0.01" value="1026.00" required></label>
+
+    <div class="actions">
+      <button type="submit" id="btn">Predict</button>
+      <span id="result" aria-live="polite"></span>
+      <span id="error" aria-live="polite"></span>
+    </div>
+  </form>
+</main>
+
+<script>
+  const form = document.getElementById("form");
+  const btn = document.getElementById("btn");
+  const result = document.getElementById("result");
+  const error = document.getElementById("error");
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    result.textContent = "";
+    error.textContent = "";
+    btn.disabled = true;
+
+    // Build the JSON body: numbers must be sent as numbers
+    const body = {};
+    for (const el of form.elements) {
+      if (!el.name) continue;
+      body[el.name] = el.dataset.type === "int" ? parseInt(el.value, 10)
+                    : el.dataset.type === "float" ? parseFloat(el.value)
+                    : el.value;
+    }
+
+    try {
+      const response = await fetch("/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        throw new Error("The API returned an error (" + response.status + "). Check the values.");
+      }
+      const data = await response.json();
+      const percent = (data.churn_probability * 100).toFixed(1);
+      const cls = data.churn === "Yes" ? "yes" : "no";
+      const text = data.churn === "Yes" ? "Likely to churn" : "Likely to stay";
+      result.innerHTML = '<strong class="' + cls + '">' + text + "</strong> (churn probability " + percent + "%)";
+    } catch (err) {
+      error.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
